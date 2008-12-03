@@ -10,7 +10,7 @@ using System.Windows;
 [assembly: AssemblyTitle("Tibia Chat")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Farsa")]
 [assembly: AssemblyProduct("Tibia Chat")]
 [assembly: AssemblyCopyright("Copyright ©  2008")]
 [assembly: AssemblyTrademark("")]
