@@ -14,6 +14,23 @@
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
+    <ApplicationIcon>
+    </ApplicationIcon>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -67,6 +84,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="newchannel.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Window1.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -81,10 +102,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BigInteger.cs" />
     <Compile Include="CharList.cs" />
     <Compile Include="Main.xaml.cs">
       <DependentUpon>Main.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="newchannel.xaml.cs">
+      <DependentUpon>newchannel.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
@@ -99,124 +122,93 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="TibiaAPI\Addresses\BattleList.cs" />
-    <Compile Include="TibiaAPI\Addresses\Client.cs" />
-    <Compile Include="TibiaAPI\Addresses\Container.cs" />
-    <Compile Include="TibiaAPI\Addresses\ContextMenus.cs" />
-    <Compile Include="TibiaAPI\Addresses\Creature.cs" />
-    <Compile Include="TibiaAPI\Addresses\DatItem.cs" />
-    <Compile Include="TibiaAPI\Addresses\Hotkey.cs" />
-    <Compile Include="TibiaAPI\Addresses\Map.cs" />
-    <Compile Include="TibiaAPI\Addresses\Player.cs" />
-    <Compile Include="TibiaAPI\Addresses\TextDisplay.cs" />
-    <Compile Include="TibiaAPI\Addresses\Vip.cs" />
-    <Compile Include="TibiaAPI\Constants\Enums.cs" />
-    <Compile Include="TibiaAPI\Constants\ItemLists.cs" />
-    <Compile Include="TibiaAPI\Constants\Items.cs" />
-    <Compile Include="TibiaAPI\Constants\Spells.cs" />
-    <Compile Include="TibiaAPI\Constants\Tiles.cs" />
-    <Compile Include="TibiaAPI\Exceptions\Misc.cs" />
-    <Compile Include="TibiaAPI\Exceptions\Version.cs" />
-    <Compile Include="TibiaAPI\Objects\BattleList.cs" />
-    <Compile Include="TibiaAPI\Objects\Client.cs" />
-    <Compile Include="TibiaAPI\Objects\Console.cs" />
-    <Compile Include="TibiaAPI\Objects\Container.cs" />
-    <Compile Include="TibiaAPI\Objects\Creature.cs" />
-    <Compile Include="TibiaAPI\Objects\Hotkey.cs" />
-    <Compile Include="TibiaAPI\Objects\Inventory.cs" />
-    <Compile Include="TibiaAPI\Objects\Item.cs" />
-    <Compile Include="TibiaAPI\Objects\Location.cs" />
-    <Compile Include="TibiaAPI\Objects\Map.cs" />
-    <Compile Include="TibiaAPI\Objects\MapSquare.cs" />
-    <Compile Include="TibiaAPI\Objects\Player.cs" />
-    <Compile Include="TibiaAPI\Objects\Spell.cs" />
-    <Compile Include="TibiaAPI\Objects\Structures.cs" />
-    <Compile Include="TibiaAPI\Objects\Vip.cs" />
-    <Compile Include="TibiaAPI\Objects\VipList.cs" />
-    <Compile Include="TibiaAPI\Packets\DefaultTemplatePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Enums.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\AnimatedTextPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\AttackPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\BadLoginPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\BookOpenPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CancelAutoWalkPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\CancelMovePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ChannelListPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ChannelOpenPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CharListPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ChatMessagePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ContainerClosedPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ContainerItemAddPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ContainerItemRemove.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ContainerItemUpdatePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ContainerOpenedPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureHealthPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureLightPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureMovePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureOutfitPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureSkullPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureSpeedPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\CreatureSquarePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\EqItemAddPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\EqItemRemovePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\FlagUpdatePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\InformationBoxPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\MapItemAddPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\MapItemRemovePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\MapItemUpdate.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\NpcTradeGoldCountSaleListPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\NpcTradeListPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\PartyInvitePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\PrivateChannelOpenPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\ProjectilePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\SkillUpdatePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\StatusMessagePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\StatusUpdatePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\TileAnimationPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\VipAddPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\VipLoginPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\VipLogoutPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Incoming\WorldLightPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ContainerClosePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ContainerOpenParentPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\FollowPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ItemMovePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ItemUseBattlelistPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ItemUseOnPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\ItemUsePacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\LogoutPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\LookAtPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\NPCTradeBuyItemPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\NPCTradeSellItemPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Outgoing\PlayerSpeechPacket.cs" />
-    <Compile Include="TibiaAPI\Packets\Packet.cs" />
-    <Compile Include="TibiaAPI\Packets\PacketBuilder.cs" />
-    <Compile Include="TibiaAPI\Util\AdlerCheckSum.cs" />
-    <Compile Include="TibiaAPI\Util\Calculate.cs" />
-    <Compile Include="TibiaAPI\Util\DatItem.cs" />
-    <Compile Include="TibiaAPI\Util\DatReader.cs" />
-    <Compile Include="TibiaAPI\Util\Extensions.cs" />
-    <Compile Include="TibiaAPI\Util\Irc.cs" />
-    <Compile Include="TibiaAPI\Util\MapMerger.cs" />
-    <Compile Include="TibiaAPI\Util\Memory.cs" />
-    <Compile Include="TibiaAPI\Util\Pipe.cs" />
-    <Compile Include="TibiaAPI\Util\Proxy.cs" />
-    <Compile Include="TibiaAPI\Util\RawSocket.cs" />
-    <Compile Include="TibiaAPI\Util\Timer.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="TibiaAPI\Util\Version.cs" />
-    <Compile Include="TibiaAPI\Util\WinApi.cs" />
-    <Compile Include="TibiaAPI\Util\XTEA.cs" />
+    <Compile Include="Enums.cs" />
+    <Compile Include="TibiaAPIetc\Objects\ChatMessage.cs" />
+    <Compile Include="TibiaAPIetc\Objects\Item.cs" />
+    <Compile Include="TibiaAPIetc\Objects\Location.cs" />
+    <Compile Include="TibiaAPIetc\Objects\Structures.cs" />
+    <Compile Include="TibiaAPIetc\Packets\DefaultTemplatePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Enums.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\AnimatedTextPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\BadLoginPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\BookOpenPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CancelAutoWalkPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ChannelListPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ChannelOpenPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CharListPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ChatMessagePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ContainerClosedPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ContainerItemAddPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ContainerItemRemove.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ContainerItemUpdatePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ContainerOpenedPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureHealthPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureLightPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureMovePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureOutfitPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureSkullPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureSpeedPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\CreatureSquarePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\EqItemAddPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\EqItemRemovePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\FlagUpdatePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\InformationBoxPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\MapItemAddPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\MapItemRemovePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\MapItemUpdate.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\NpcTradeGoldCountSaleListPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\NpcTradeListPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\PartyInvitePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\PrivateChannelOpenPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\ProjectilePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\SkillUpdatePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\StatusMessagePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\StatusUpdatePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\TileAnimationPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipAddPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipLoginPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipLogoutPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\WorldLightPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Outgoing\PlayerSpeechPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Packet.cs" />
+    <Compile Include="TibiaAPIetc\Packets\PacketBuilder.cs" />
+    <Compile Include="TibiaAPIetc\Util\AdlerCheckSum.cs" />
+    <Compile Include="TibiaAPIetc\Util\BigInteger.cs" />
+    <Compile Include="TibiaAPIetc\Util\XTEA.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="items.flag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
+      <Visible>False</Visible>
+      <ProductName>Windows Installer 3.1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

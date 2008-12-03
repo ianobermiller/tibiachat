@@ -2,7 +2,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     DataContext="{Binding RelativeSource={RelativeSource Self}}"
-    Title="Tibia Chat" SizeToContent="WidthAndHeight" ResizeMode="CanMinimize">
+    Title="Tibia Chat" WindowStartupLocation="CenterScreen" SizeToContent="WidthAndHeight" 
+         Loaded="wndLoaded" ResizeMode="CanMinimize" MaxWidth="544" MaxHeight="770">
     <StackPanel>
         <Expander Name="conExpander" Margin="5" Header="Connection" IsExpanded="True">
         <Grid>
@@ -14,15 +15,16 @@
                 <RowDefinition></RowDefinition>
             </Grid.RowDefinitions>
             <Label Grid.Row="0" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">Account:</Label>
-            <TextBox HorizontalContentAlignment="Center" Width="200" Name="txtacc" Grid.Row="1" Margin="5,0,5,0" VerticalAlignment="Center" ></TextBox>
+            <PasswordBox HorizontalContentAlignment="Center" Width="200" Name="txtacc" Grid.Row="1" Margin="5,0,5,0" VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
             <Label Grid.Row="2" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">Password:</Label>
-            <TextBox HorizontalContentAlignment="Center" Width="200" Name="txtpass" Grid.Row="3" Margin="5,0,5,5"  VerticalAlignment="Center" ></TextBox>
-            <Button Width="200" Name="connectbtn" Grid.Row="4" Margin="5" Click="Connect" >Get Char List</Button>
+            <PasswordBox HorizontalContentAlignment="Center" Width="200" Name="txtpass" Grid.Row="3" Margin="5,0,5,5"  VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
+            <Button Width="100" Name="LoginBtn" Grid.Row="4" Margin="5" Click="LoginBtnClick" >Login</Button>
         </Grid>
         </Expander>
-        <Expander IsExpanded="False" Name="charsExpander" Margin="5" Header="Characters" IsEnabled="true">
+        <Expander IsExpanded="True" Name="charsExpander" Margin="5" Header="Characters" IsEnabled="true">
             <StackPanel>
-            <ListView SelectionMode="Single" Name="charsListView"  ItemsSource="{Binding mycharacters}" Margin="5" MinWidth="200" MinHeight="100">
+            <ListView ScrollViewer.CanContentScroll="True"  SelectionMode="Single" Name="charsListView"  ItemsSource="{Binding mycharacters}"
+                      Margin="5" MinWidth="200" Height="100">
                 <ListView.View>
                     <GridView>
                         <GridViewColumn DisplayMemberBinding="{Binding charName}">
@@ -34,35 +36,34 @@
                     </GridView>
                 </ListView.View>
             </ListView>
-            <Button Name="conCharBtn" Margin="5" Width="200" Click="ConnectCharacter">Connect</Button>
-            <ProgressBar Name="conProgress" Margin="5" Width="150" Height="20"></ProgressBar>
+            <Button Name="ConnectBtn" Margin="5" Width="100" Click="ConnectBtnClick">Connect</Button>
+                <ProgressBar Name="conProgress" Margin="5,0,5,5" Width="150" Height="20"/>
             </StackPanel>            
         </Expander>
-        <Expander Margin="5" Header="Conversations" Name="convExpander" IsExpanded="True">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="230"></ColumnDefinition>
-                    <ColumnDefinition ></ColumnDefinition>
-                </Grid.ColumnDefinitions>
+        <Expander IsExpanded="True" Margin="5" Header="Conversations" Name="convExpander" >
+            <Grid >
                 <Grid.RowDefinitions>
                     <RowDefinition></RowDefinition>
                     <RowDefinition></RowDefinition>
-                    <RowDefinition></RowDefinition>
                 </Grid.RowDefinitions>
-                <TabControl Name="convosTab" Grid.ColumnSpan="2" Margin="5" ContextMenuService.ShowOnDisabled="True">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition ></ColumnDefinition>
+                    <ColumnDefinition Width="50"></ColumnDefinition>
+                </Grid.ColumnDefinitions>
+                <TabControl ItemsSource="{Binding tabItemCollection}" Name="convosTab"   
+                        Grid.ColumnSpan="2" Margin="5" 
+                        ContextMenuService.ShowOnDisabled="True"
+                        Height="300" Width="500">
                     <TabControl.ContextMenu>
                         <ContextMenu>
-                            <Label Margin="0" Padding="0">Open Window</Label>
-                            <Label Margin="0" Padding="0">Close Window</Label>
-                            <Label Margin="0" Padding="0">Clear Window</Label>
+                            <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Open Channel" Click="OpenChannel"/>
+                            <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Close Channel" Click="CloseChannel"/>
+                            <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Clear Channel" Click="ClearChannel"/>
                         </ContextMenu>
                     </TabControl.ContextMenu>
-                    <TabItem Header="Default">
-                        <TextBox Name="defaulttxt" TextWrapping="Wrap" FontWeight="Bold" Margin="3" Width="350" Height="200" IsReadOnly="True"></TextBox>
-                    </TabItem>
                 </TabControl>
-                <TextBox MaxLength="255" Margin="5" Grid.Row="1"></TextBox>
-                <Button Grid.Row="1" Grid.Column="1" Margin="5">Send</Button>
+                <TextBox KeyDown="messagetxt_KeyDown" Name="messagetxt" MaxLength="255" Margin="5" Grid.Row="1"></TextBox>
+                <Button Name="sendbtn" IsEnabled="False" Click="SendClick" Grid.Row="1" Grid.Column="1" Margin="5">Send</Button>
             </Grid>
         </Expander>
     </StackPanel>

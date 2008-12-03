@@ -1,0 +1,26 @@
+﻿<Window x:Class="Tibia_Chat.newchannel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="New Channel" KeyDown="KeyDownE" WindowStartupLocation="CenterScreen" Height="281" Width="232" FontWeight="bold" WindowStyle="ToolWindow">
+    <StackPanel >   
+            <Label Margin="5,5,5,0" >Select a Channel:</Label>
+            <ListBox SelectionChanged="SelectionChange"
+                Name="channelListBox" Margin="10,0,10,5" 
+                Height="119"  ScrollViewer.VerticalScrollBarVisibility="Visible">
+                <ListBoxItem>Game-Chat</ListBoxItem>
+                <ListBoxItem>RL-Chat</ListBoxItem>
+                <ListBoxItem>Help</ListBoxItem>
+            </ListBox>
+            <Label Margin="5,5,5,0" >Open a private message channel:</Label>            
+            <TextBox Name="chantxt" Margin="10,0,5,5"></TextBox>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="90"></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Button Click="OpenChannel" Grid.Column="1" Margin="5">Open</Button>
+            <Button Click="Cancel" Grid.Column="2" Margin="5">Cancel</Button>
+        </Grid>
+    </StackPanel>
+</Window>
