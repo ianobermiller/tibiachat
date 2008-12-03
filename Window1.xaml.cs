@@ -26,24 +26,31 @@ namespace Tibia_Chat
     {
 
         ObservableCollection<CharListChar> _mycharacters = new ObservableCollection<CharListChar>();
-
+        ObservableCollection<TabItem> _tabItemCollection = new ObservableCollection<TabItem>();
         Socket CharListSock;
         Socket GameLoginSock;
         Queue<byte[]> serverReceiveQueue = new Queue<byte[]>();
+        List<string> sentmessages = new List<string>();
+        int sentmessageindex=0;
         string AccName;
         string AccPass;
+        string charname;
         byte[] dataLoginServer = new byte[8192];
         byte[] dataGameServer = new byte[8192];
         byte[] xtea = new byte[16];
         byte[] CharLoginPacket;
         byte[] GameLoginPacket;
         byte[] CharListDecrypted;
+        double currprogress;
+        double maxprogress;
+        string waitingmessage = null;
         int loginsvindex;
         int charindex;
         int tempLen = 0;
         int partialRemaining = 0;
         PacketBuilder partial;
-        bool loggedin=false;
+        bool loggedin = false;
+        bool disconnecting = false;
         private LoginServer[] loginServers = new LoginServer[] {
             new LoginServer("login01.tibia.com", 7171),
             new LoginServer("login02.tibia.com", 7171),
@@ -57,6 +64,8 @@ namespace Tibia_Chat
             new LoginServer("tibia05.cipsoft.com", 7171)
         };
         System.Threading.Timer pingTimer;
+        System.Threading.Timer progressTimer;
+        bool blocktimer;
 
         #region Events
         /// <summary>
@@ -156,70 +165,266 @@ namespace Tibia_Chat
         public Window1()
         {
             InitializeComponent();
+            //attaching received message event..
             this.ReceivedChatMessagePacket += ChatMessageReceived;
+            GradientStopCollection gsc=new GradientStopCollection();
+            gsc.Add(new GradientStop(Color.FromArgb(255, 204, 232, 255),0.3));
+            gsc.Add(new GradientStop(Color.FromArgb(255, 125, 175, 255), 1));
+            this.Background = new LinearGradientBrush(gsc);
         }
 
-        private void Connect(object sender, RoutedEventArgs e)
+        private void wndLoaded(object sender, RoutedEventArgs e)
         {
-            loginsvindex=0;
+            //adding default tab and giving focus to it
+            AddTab("Default");
+            convosTab.SelectedItem = convosTab.Items[0];
+        }
+
+        private void LoginBtnClick(object sender, RoutedEventArgs e)
+        {            
+            loginsvindex = 0;
             GetChars(loginsvindex);
         }
 
-        private void ConnectCharacter(object sender, RoutedEventArgs e)
+        private void ConnectBtnClick(object sender, RoutedEventArgs e)
         {
-            if (conCharBtn.Content.ToString() == "Connect")
+            //Connect char to the game world
+            if (ConnectBtn.Content.ToString() == "Connect")
             {
                 if (charsListView.SelectedItem != null)
                 {
                     charindex = charsListView.SelectedIndex;
+                    charname = _mycharacters[charindex].charName;
+                    //creating random xtea key..
                     Random rnd = new Random();
                     rnd.NextBytes(xtea);
                     ConnectChar();
                 }
             }
-            else
+            //disconnect from g. w.
+            else if (ConnectBtn.Content.ToString() == "Disconnect")
             {
 
-                GameLoginSock.Send(Tibia.Util.XTEA.Encrypt(new byte[] { 0x01, 0x00, 0x14 }, xtea, true));
-                GameLoginSock.Disconnect(true);
-                loggedin = false;
-                pingTimer.Dispose();
-                conCharBtn.Content = "Disconnect";
-
+                SendPacket(new byte[] { 0x01, 0x00, 0x14 });
+                ConnectBtn.IsEnabled = false;
+                sendbtn.IsEnabled = false;
+                disconnecting = true;
+                GameLoginSock.BeginDisconnect(true, (AsyncCallback)GameDisconnect, null);
+            }
+            //cancel connection while on the waiting list
+            else if (ConnectBtn.Content.ToString() == "Abort")
+            {
+                if (progressTimer != null) progressTimer.Dispose();
+                if (GameLoginSock.Connected)
+                    try
+                    { GameLoginSock.Disconnect(true); }
+                    catch { }
+                conProgress.Value = 0;
+                conProgress.ToolTip = null;
+                blocktimer = false;
+                ConnectBtn.Content = "Connect";
             }
         }
 
         private bool ChatMessageReceived(Packet packet)
         {
-            ChatMessagePacket p = new ChatMessagePacket(null, packet.Data);
-
+            ChatMessagePacket p = new ChatMessagePacket(packet.Data);
+            if (p.SenderName == charname) return true;
             this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
             (System.Threading.ThreadStart)delegate()
             {
                 switch (p.MessageType)
                 {
-                    case Tibia.Packets.ChatType.PrivateMessage:
-                        
-                        defaulttxt.AppendText(p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                    case ChatType.PrivateMessage:
+                        if(!AppendText(p.SenderName,p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n"))
+                            ((TextBox)_tabItemCollection[0].Content).AppendText("(PVT) " + p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
                         break;
-                    case Tibia.Packets.ChatType.Normal:
-                    case Tibia.Packets.ChatType.Whisper:
-                    case Tibia.Packets.ChatType.Yell:
-                        defaulttxt.AppendText(p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                    case ChatType.Normal:
+                    case ChatType.Whisper:
+                    case ChatType.Yell:
+                        AppendText("Default", p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
                         break;
-
+                    case ChatType.ChannelNormal:
+                        switch(p.Channel)
+                        {
+                            case ChatChannel.Game:
+                                AppendText("Game-Chat",p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                                break;
+                            case ChatChannel.RL:
+                                AppendText("RL-Chat",p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                                break;
+                            case ChatChannel.Help:
+                                AppendText("Help",p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                                break;
+                        }
+                        break;                        
                 }
             });
             return true;
         }
 
+        #region tabcontrol contextmenu
+        private void OpenChannel(object sender, RoutedEventArgs e)
+        {
+            string newChannel=newchannel.ShowBox(_tabItemCollection);
+            if (newChannel != null)
+            {
+                newChannel=newChannel.ToLower();
+                string[] _newChannel = newChannel.Split();
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < _newChannel.Length; i++)
+                    sb.Append(_newChannel[i][0].ToString().ToUpper() + _newChannel[i].Substring(1) + " ");
+                
+                AddTab(sb.ToString().Trim());
+            }
+        }
+
+        private void CloseChannel(object sender, RoutedEventArgs e)
+        {
+            if (((TabItem)convosTab.SelectedItem).Header.ToString() != "Default")
+                _tabItemCollection.Remove(((TabItem)convosTab.SelectedItem));
+        }
+
+        private void ClearChannel(object sender, RoutedEventArgs e)
+        {
+            ((TextBox)((TabItem)convosTab.SelectedItem).Content).Clear();
+        }
+        #endregion
+
+        #region messaging
+        private void SendClick(object sender, RoutedEventArgs e)
+        {
+            SendMessage();
+        }
+
+        private void messagetxt_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) SendMessage();/*
+            if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                if (sentmessageindex >= 1)
+                {
+                    if (e.Key == Key.Down) sentmessageindex--;
+                    if (e.Key == Key.Down) sentmessageindex++;
+                }
+                messagetxt.Text = sentmessages[sentmessageindex];
+            }*/
+        }
+
+        private void SendMessage()
+        {
+            if(messagetxt.Text.Length>0)
+            {
+                switch (((TabItem)convosTab.SelectedItem).Header.ToString())
+                {
+                    case "Default":
+                        SendPacket(PlayerSpeechPacket.Create(messagetxt.Text).Data);
+                        break;
+                    case "Game-Chat":
+                        SendPacket(PlayerSpeechPacket.Create(new Tibia.Objects.ChatMessage(messagetxt.Text, ChatChannel.Game)).Data);                        
+                        break;
+                    case "RL-Chat":
+                        SendPacket(PlayerSpeechPacket.Create(new Tibia.Objects.ChatMessage(messagetxt.Text, ChatChannel.RL)).Data);
+                        break;
+                    default:
+                        SendPacket(PlayerSpeechPacket.Create(new Tibia.Objects.ChatMessage(messagetxt.Text, ((TabItem)convosTab.SelectedItem).Header.ToString())).Data);
+                        break;
+                }
+                sentmessageindex = 0;
+                sentmessages.Add(messagetxt.Text);
+                AppendText(((TabItem)convosTab.SelectedItem).Header.ToString(),
+                    charname+" [0]: " + messagetxt.Text + "\n");
+                messagetxt.Clear();
+            }
+        }
+        #endregion
+
+        private void pingTimerCallback(object o)
+        {
+            if (loggedin)
+                SendPacket(new byte[] { 0x01, 0x00, 0x1E });
+        }
+
+        private void progressTimerCallback(object o)
+        {
+            if (!blocktimer)
+            {
+                currprogress += 500;
+                if (currprogress / 1000 < maxprogress)
+                {
+                    this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, (System.Threading.ThreadStart)
+                        delegate()
+                        {
+                            conProgress.ToolTip = waitingmessage+"Trying to reconnect in "+
+                                Convert.ToUInt16(maxprogress-currprogress/1000) + " seconds.";
+                            conProgress.Value = currprogress / (maxprogress * 10);
+                        });
+                }
+                else
+                {
+                    blocktimer = true;
+                    this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, (System.Threading.ThreadStart)
+                        delegate()
+                        {
+                            conProgress.ToolTip = null;
+                            conProgress.Value = 0;
+                        });
+                    ConnectChar();
+                    progressTimer.Dispose();
+                }
+            }
+        }
+
+        #region managing the tabs and textboxes
+        public void AddTab(string header)
+        {
+            foreach (TabItem t in _tabItemCollection)
+                if (t.Header.ToString() == header) return;
+            TabItem ti = new TabItem();
+            ti.Header = header;
+            TextBox tb = new TextBox();
+            tb.TextWrapping = TextWrapping.Wrap;
+            tb.Margin = new Thickness(3);
+            tb.IsReadOnly = true;
+            tb.VerticalScrollBarVisibility = ScrollBarVisibility.Visible;
+            ti.Content = tb;
+            _tabItemCollection.Add(ti);
+            convosTab.SelectedItem = ti;
+        }
+
+        public bool AppendText(string channel, string message)
+        {
+            foreach (TabItem ti in _tabItemCollection)
+            {
+                if (ti.Header.ToString() == channel)
+                {
+                    ((TextBox)ti.Content).AppendText(message);
+                    return true;
+                }
+            }
+            return false;
+        }
+        #endregion
+
+        #region binded data
+
+        public ObservableCollection<CharListChar> mycharacters
+        { get { return _mycharacters; } }
+
+        public ObservableCollection<TabItem> tabItemCollection
+        { get { return _tabItemCollection; } }
+        #endregion
+
+        #region charlist
         private void GetChars(int loginsvindex)
         {
-            connectbtn.IsEnabled = false;
-            AccName = txtacc.Text;
-            AccPass = txtpass.Text;
+            LoginBtn.IsEnabled = false;
+            AccName = txtacc.Password;
+            AccPass = txtpass.Password;
+            //connecting socket to the specified loginserver..
             CharListSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            CharListSock.BeginConnect(loginServers[loginsvindex].IP, loginServers[loginsvindex].Port, (AsyncCallback)LoginServerConnect, null);
+            CharListSock.BeginConnect(loginServers[loginsvindex].IP, 
+                loginServers[loginsvindex].Port, (AsyncCallback)LoginServerConnect, null);
         }
 
         private void LoginServerConnect(IAsyncResult ar)
@@ -228,23 +433,25 @@ namespace Tibia_Chat
             {
                 CharListSock.EndConnect(ar);
                 Random rnd = new Random();
+                //creating random xtea key
                 rnd.NextBytes(xtea);
-                CharLoginPacket=Clientless.CreateCharListPacket(AccName,AccPass,"831",
-                    new byte[] { 0xB6, 0x1F, 0xDA, 0x48, 0x12, 0xE7, 0xC8, 0x48, 0x06, 0x21, 0x56, 0x48 },xtea);
+                CharLoginPacket = Clientless.CreateCharListPacket(AccName, AccPass, "831",
+                    new byte[] { 0xB6, 0x1F, 0xDA, 0x48, 0x12, 0xE7, 0xC8, 0x48, 0x06, 0x21, 0x56, 0x48 }, xtea);
                 SocketError error = new SocketError();
+                //sending the charlist request packet
                 CharListSock.Send(CharLoginPacket, 0, CharLoginPacket.Length, SocketFlags.None, out error);
                 CharListSock.BeginReceive(dataLoginServer, 0, dataLoginServer.Length, SocketFlags.None, (AsyncCallback)CharListReceived, null);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString(),"Tibia Chat",MessageBoxButton.OK,MessageBoxImage.Error);
+                MessageBox.Show(ex.ToString(), "Tibia Chat", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void CharListReceived(IAsyncResult ar)
         {
             try
-            {                
+            {
                 int dataLength = CharListSock.EndReceive(ar);
                 if (dataLength > 0)
                 {
@@ -253,38 +460,21 @@ namespace Tibia_Chat
                     CharListDecrypted = Tibia.Util.XTEA.Decrypt(tmp, xtea, true);
                     if (CharListDecrypted[2] == 0x14)
                     {
-                        ParseCharList(CharListDecrypted);;
+                        //we received a char list
+                        //parse and fill the listview with chars and their respective servers
+                        ParseCharList(CharListDecrypted); ;
                         CharListSock.BeginDisconnect(true, (AsyncCallback)LoginServerDisconnect, null);
                     }
-                    else 
+                    else
                     {
-                        if(loginsvindex<=9)
-                        {
-                            CharListSock.Disconnect(true);
-                            CharListSock.BeginConnect(loginServers[loginsvindex++].IP, loginServers[loginsvindex++].Port, (AsyncCallback)LoginServerConnect, null);
-                        }
-                        else
-                        {
-                            MessageBox.Show("Could not connect to any login server.\r\n"
-                            ,"Tibia Chat",MessageBoxButton.OK,MessageBoxImage.Error);
-                            CharListSock.BeginDisconnect(true, (AsyncCallback)LoginServerDisconnect, null);
-                        }
-
+                        //we got an "unknown" message
+                        ConnectNextLoginServer();
                     }
                 }
                 else
                 {
-                    if (loginsvindex <= 9)
-                    {
-                        CharListSock.Disconnect(true);
-                        CharListSock.BeginConnect(loginServers[loginsvindex++].IP, loginServers[loginsvindex++].Port, (AsyncCallback)LoginServerConnect, null);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Could not connect to any login server.\r\n"
-                        , "Tibia Chat", MessageBoxButton.OK, MessageBoxImage.Error);
-                        CharListSock.BeginDisconnect(true, (AsyncCallback)LoginServerDisconnect, null);
-                    }
+                    //we didn't receive anything
+                    ConnectNextLoginServer();
                 }
             }
             catch (Exception ex)
@@ -293,17 +483,71 @@ namespace Tibia_Chat
             }
         }
 
+        private void ConnectNextLoginServer()
+        {
+            if (loginsvindex < 9)
+            {
+                //we didn't get the char list, so we connect to the next login server and retry
+                CharListSock.Disconnect(true);
+                loginsvindex++;
+                CharListSock.BeginConnect(loginServers[loginsvindex].IP, loginServers[loginsvindex].Port, (AsyncCallback)LoginServerConnect, null);
+            }
+            else
+            {
+                //we went through all login servers and couldnt get the chars list
+                MessageBox.Show("Could not connect to any login server.\r\n"
+                , "Tibia Chat", MessageBoxButton.OK, MessageBoxImage.Error);
+                CharListSock.BeginDisconnect(true, (AsyncCallback)LoginServerDisconnect, null);
+            }
+        }
+
         private void LoginServerDisconnect(IAsyncResult ar)
         {
+            CharListSock.EndDisconnect(ar);
             this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
             (System.Threading.ThreadStart)delegate()
             {
-                connectbtn.IsEnabled = true;
+                LoginBtn.IsEnabled = true;
             });
         }
 
+
+
+        private void ParseCharList(byte[] packet)
+        {
+            CharListPacket clpacket = new CharListPacket(CharListDecrypted);
+            clpacket.ParseData(packet);
+            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+            (System.Threading.ThreadStart)delegate()
+            {
+
+                _mycharacters.Clear();
+                for (int i = 0; i < clpacket.chars.Length; i++)
+                {
+                    _mycharacters.Add(new CharListChar
+                    {
+                        lenCharName = clpacket.chars[i].lenCharName,
+                        charName = clpacket.chars[i].charName,
+                        lenWorldName = clpacket.chars[i].lenWorldName,
+                        worldName = clpacket.chars[i].worldName,
+                        worldIP = clpacket.chars[i].worldIP,
+                        worldPort = clpacket.chars[i].worldPort,
+                    });
+                }
+                charsExpander.IsEnabled = true;
+                charsExpander.IsExpanded = true;
+            });
+        }
+        #endregion
+
+        #region game connection
         private void ConnectChar()
         {
+            this.Dispatcher.Invoke(DispatcherPriority.Normal, (System.Threading.ThreadStart)delegate()
+            {
+                ConnectBtn.IsEnabled = false;
+            });
+            //connecting the selected char on the listview
             GameLoginSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             GameLoginSock.BeginConnect(_mycharacters[charindex].worldIP,
                 _mycharacters[charindex].worldPort,
@@ -316,8 +560,8 @@ namespace Tibia_Chat
             SocketError error = new SocketError();
             GameLoginPacket = Clientless.CreateGameLoginPacket(AccName,
                 AccPass, _mycharacters[charindex].charName, "831", xtea);
+            //send the game connection request
             GameLoginSock.Send(GameLoginPacket, 0, 139, SocketFlags.None, out error);
-            pingTimer = new System.Threading.Timer(pingTimerCallback, null, 30000, 30000);
             GameLoginSock.BeginReceive(dataGameServer, 0, dataGameServer.Length, SocketFlags.None,
                 (AsyncCallback)GameServerReceive, null);
         }
@@ -342,8 +586,23 @@ namespace Tibia_Chat
 
             ProcessServerReceiveQueue();
 
+            if(!(disconnecting || !GameLoginSock.Connected || !loggedin))
             GameLoginSock.BeginReceive(dataGameServer, 0, dataGameServer.Length,
                 SocketFlags.None, (AsyncCallback)GameServerReceive, null);
+        }
+
+        private void GameDisconnect(IAsyncResult ar)
+        {
+            GameLoginSock.EndDisconnect(ar);
+            loggedin = false;
+            disconnecting = false;
+            pingTimer.Dispose();
+            this.Dispatcher.Invoke(DispatcherPriority.Normal,
+            (System.Threading.ThreadStart)delegate()
+            {
+                ConnectBtn.IsEnabled = true;
+                ConnectBtn.Content = "Connect";
+            });
         }
 
         private void ProcessServerReceiveQueue()
@@ -360,7 +619,7 @@ namespace Tibia_Chat
 
                 // Always call the default (if attached to)
                 if (ReceivedPacketFromServer != null)
-                    ReceivedPacketFromServer.BeginInvoke(new Packet(null, decrypted), null, null);
+                    ReceivedPacketFromServer.BeginInvoke(new Packet(decrypted), null, null);
 
                 // Is this a part of a larger packet?
                 if (partialRemaining > 0)
@@ -375,7 +634,7 @@ namespace Tibia_Chat
                 else
                 {
                     // No, create a new partial packet
-                    partial = new PacketBuilder(null, decrypted);
+                    partial = new PacketBuilder( decrypted);
                     remaining = partial.GetInt();
                     partialRemaining = remaining - (decrypted.Length - 2); // packet length - part we already have
                 }
@@ -393,19 +652,56 @@ namespace Tibia_Chat
                         // If packet not found in database, skip the rest
                         if (length == -1)
                         {
-
-                            if (decrypted[2] == (int)PacketType.AddCreature)
+                            if (!loggedin)
                             {
-                                this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
-                                (System.Threading.ThreadStart)delegate()
+                                //we are connected now
+                                if (decrypted[2] == (int)PacketType.AddCreature)
                                 {
-                                    conCharBtn.Content = "Disconnect";
-                                    charsExpander.IsExpanded = false;
-                                    convExpander.IsExpanded = true;
-                                });
-                                loggedin = true;
+                                    //open game-chat
+                                    SendPacket(new byte[] { 0x03, 0x00, 0x98, 0x04, 0x00 });
+                                    System.Threading.Thread.Sleep(200);
+                                    //open rl-chat
+                                    SendPacket(new byte[] { 0x03, 0x00, 0x98, 0x07, 0x00 });
+                                    System.Threading.Thread.Sleep(200);
+                                    //open help channel
+                                    SendPacket(new byte[] { 0x03, 0x00, 0x98, 0x08, 0x00 });
+                                    this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                                    (System.Threading.ThreadStart)delegate()
+                                    {
+                                        sendbtn.IsEnabled = true;
+                                        ConnectBtn.Content = "Disconnect";
+                                        ConnectBtn.IsEnabled = true;
+                                        convExpander.IsExpanded = true;
+                                    });
+                                    loggedin = true;
+                                    //starting to ping the server so as to not be disconnected
+                                    pingTimer = new System.Threading.Timer(pingTimerCallback, null, 30000, 30000);
+                                }
+                                else if (decrypted[2] == 0x16)
+                                {
+                                    maxprogress = Convert.ToDouble(decrypted.Last());
+                                    currprogress = 0;
+                                    blocktimer = false;
+                                    waitingmessage = Encoding.ASCII.GetString(decrypted, 5, BitConverter.ToInt16(decrypted, 3)).Trim();
+                                    progressTimer = new System.Threading.Timer(progressTimerCallback, null, 0, 500);
+                                    GameLoginSock.Disconnect(true);
+                                    this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                                        (System.Threading.ThreadStart)delegate()
+                                    {
+                                        ConnectBtn.Content = "Abort";
+                                        ConnectBtn.IsEnabled = true;
+                                    });
+                                }
+                                else
+                                {
+                                    ConnectBtn.IsEnabled = false;
+                                    sendbtn.IsEnabled = false;
+                                    disconnecting = true;
+                                    GameLoginSock.BeginDisconnect(true, (AsyncCallback)GameDisconnect, null);
+                                    MessageBox.Show("Unknown error message received from the game server.", "Tibia Chat",
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                                }
                             }
-                            //SendToClient(decrypted);
                             break;
                         }
 
@@ -413,10 +709,8 @@ namespace Tibia_Chat
                         if (forward)
                         {
                             if (SplitPacketFromServer != null)
-                                SplitPacketFromServer.BeginInvoke(new Packet(null, Packet.Repackage(decrypted, 2, length)), null, null);
+                                SplitPacketFromServer.BeginInvoke(new Packet(Packet.Repackage(decrypted, 2, length)), null, null);
 
-                            // Repackage it and send
-                            //SendToClient(Packet.Repackage(decrypted, 2, length));
                         }
 
                         // Subtract the amount that was parsed
@@ -443,228 +737,228 @@ namespace Tibia_Chat
             switch (type)
             {
                 case PacketType.AnimatedText:
-                    p = new AnimatedTextPacket(null, packet);
+                    p = new AnimatedTextPacket(packet);
                     length = p.Index;
                     if (ReceivedAnimatedTextPacket != null)
                         return ReceivedAnimatedTextPacket(p);
                     break;
                 case PacketType.BookOpen:
-                    p = new BookOpenPacket(null, packet);
+                    p = new BookOpenPacket(packet);
                     length = p.Index;
                     if (ReceivedBookOpenPacket != null)
                         return ReceivedBookOpenPacket(p);
                     break;
                 case PacketType.CancelAutoWalk:
-                    p = new CancelAutoWalkPacket(null, packet);
+                    p = new CancelAutoWalkPacket(packet);
                     length = p.Index;
                     if (ReceivedCancelAutoWalkPacket != null)
                         return ReceivedCancelAutoWalkPacket(p);
                     break;
                 case PacketType.ChannelList:
-                    p = new ChannelListPacket(null, packet);
+                    p = new ChannelListPacket(packet);
                     length = p.Index;
                     if (ReceivedChannelListPacket != null)
                         return ReceivedChannelListPacket(p);
                     break;
                 case PacketType.ChannelOpen:
-                    p = new ChannelOpenPacket(null, packet);
+                    p = new ChannelOpenPacket(packet);
                     length = p.Index;
                     if (ReceivedChannelOpenPacket != null)
                         return ReceivedChannelOpenPacket(p);
                     break;
                 case PacketType.ChatMessage:
-                    p = new ChatMessagePacket(null, packet);
+                    p = new ChatMessagePacket(packet);
                     length = p.Index;
                     if (ReceivedChatMessagePacket != null)
                         return ReceivedChatMessagePacket(p);
                     break;
                 case PacketType.ContainerClosed:
-                    p = new ContainerClosedPacket(null, packet);
+                    p = new ContainerClosedPacket(packet);
                     length = p.Index;
                     if (ReceivedContainerClosedPacket != null)
                         return ReceivedContainerClosedPacket(p);
                     break;
                 case PacketType.ContainerItemAdd:
-                    p = new ContainerItemAddPacket(null, packet);
+                    p = new ContainerItemAddPacket(packet);
                     length = p.Index;
                     if (ReceivedContainerItemAddPacket != null)
                         return ReceivedContainerItemAddPacket(p);
                     break;
                 case PacketType.ContainerItemRemove:
-                    p = new ContainerItemRemovePacket(null, packet);
+                    p = new ContainerItemRemovePacket(packet);
                     length = p.Index;
                     if (ReceivedContainerItemRemovePacket != null)
                         return ReceivedContainerItemRemovePacket(p);
                     break;
                 case PacketType.ContainerItemUpdate:
-                    p = new ContainerItemUpdatePacket(null, packet);
+                    p = new ContainerItemUpdatePacket(packet);
                     length = p.Index;
                     if (ReceivedContainerItemUpdatePacket != null)
                         return ReceivedContainerItemUpdatePacket(p);
                     break;
                 case PacketType.ContainerOpened:
-                    p = new ContainerOpenedPacket(null, packet);
+                    p = new ContainerOpenedPacket(packet);
                     length = p.Index;
                     if (ReceivedContainerOpenedPacket != null)
                         return ReceivedContainerOpenedPacket(p);
                     break;
                 case PacketType.CreatureHealth:
-                    p = new CreatureHealthPacket(null, packet);
+                    p = new CreatureHealthPacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureHealthPacket != null)
                         return ReceivedCreatureHealthPacket(p);
                     break;
                 case PacketType.CreatureLight:
-                    p = new CreatureLightPacket(null, packet);
+                    p = new CreatureLightPacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureLightPacket != null)
                         return ReceivedCreatureLightPacket(p);
                     break;
                 case PacketType.CreatureMove:
-                    p = new CreatureMovePacket(null, packet);
+                    p = new CreatureMovePacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureMovePacket != null)
                         return ReceivedCreatureMovePacket(p);
                     break;
                 case PacketType.CreatureOutfit:
-                    p = new CreatureOutfitPacket(null, packet);
+                    p = new CreatureOutfitPacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureOutfitPacket != null)
                         return ReceivedCreatureOutfitPacket(p);
                     break;
                 case PacketType.CreatureSkull:
-                    p = new CreatureSkullPacket(null, packet);
+                    p = new CreatureSkullPacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureSkullPacket != null)
                         return ReceivedCreatureSkullPacket(p);
                     break;
                 case PacketType.CreatureSpeed:
-                    p = new CreatureSpeedPacket(null, packet);
+                    p = new CreatureSpeedPacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureSpeedPacket != null)
                         return ReceivedCreatureSpeedPacket(p);
                     break;
                 case PacketType.CreatureSquare:
-                    p = new CreatureSquarePacket(null, packet);
+                    p = new CreatureSquarePacket(packet);
                     length = p.Index;
                     if (ReceivedCreatureSquarePacket != null)
                         return ReceivedCreatureSquarePacket(p);
                     break;
                 case PacketType.EqItemAdd:
-                    p = new EqItemAddPacket(null, packet);
+                    p = new EqItemAddPacket(packet);
                     length = p.Index;
                     if (ReceivedEqItemAddPacket != null)
                         return ReceivedEqItemAddPacket(p);
                     break;
                 case PacketType.EqItemRemove:
-                    p = new EqItemRemovePacket(null, packet);
+                    p = new EqItemRemovePacket(packet);
                     length = p.Index;
                     if (ReceivedEqItemRemovePacket != null)
                         return ReceivedEqItemRemovePacket(p);
                     break;
                 case PacketType.FlagUpdate:
-                    p = new FlagUpdatePacket(null, packet);
+                    p = new FlagUpdatePacket(packet);
                     length = p.Index;
                     if (ReceivedFlagUpdatePacket != null)
                         return ReceivedFlagUpdatePacket(p);
                     break;
                 case PacketType.InformationBox:
-                    p = new InformationBoxPacket(null, packet);
+                    p = new InformationBoxPacket(packet);
                     length = p.Index;
                     if (ReceivedInformationBoxPacket != null)
                         return ReceivedInformationBoxPacket(p);
                     break;
                 case PacketType.MapItemAdd:
-                    p = new MapItemAddPacket(null, packet);
+                    p = new MapItemAddPacket(packet);
                     length = p.Index;
                     if (ReceivedMapItemAddPacket != null)
                         return ReceivedMapItemAddPacket(p);
                     break;
                 case PacketType.MapItemRemove:
-                    p = new MapItemRemovePacket(null, packet);
+                    p = new MapItemRemovePacket(packet);
                     length = p.Index;
                     if (ReceivedMapItemRemovePacket != null)
                         return ReceivedMapItemRemovePacket(p);
                     break;
                 case PacketType.MapItemUpdate:
-                    p = new MapItemUpdatePacket(null, packet);
+                    p = new MapItemUpdatePacket(packet);
                     length = p.Index;
                     if (ReceivedMapItemUpdatePacket != null)
                         return ReceivedMapItemUpdatePacket(p);
                     break;
                 case PacketType.NpcTradeList:
-                    p = new NpcTradeListPacket(null, packet);
+                    p = new NpcTradeListPacket(packet);
                     length = p.Index;
                     if (ReceivedNpcTradeListPacket != null)
                         return ReceivedNpcTradeListPacket(p);
                     break;
                 case PacketType.NpcTradeGoldCountSaleList:
-                    p = new NpcTradeGoldCountSaleListPacket(null, packet);
+                    p = new NpcTradeGoldCountSaleListPacket(packet);
                     length = p.Index;
                     if (ReceivedNpcTradeGoldCountPacket != null)
                         return ReceivedNpcTradeGoldCountPacket(p);
                     break;
                 case PacketType.PartyInvite:
-                    p = new PartyInvitePacket(null, packet);
+                    p = new PartyInvitePacket(packet);
                     length = p.Index;
                     if (ReceivedPartyInvitePacket != null)
                         return ReceivedPartyInvitePacket(p);
                     break;
                 case PacketType.PrivateChannelOpen:
-                    p = new PrivateChannelOpenPacket(null, packet);
+                    p = new PrivateChannelOpenPacket(packet);
                     length = p.Index;
                     if (ReceivedPrivateChannelOpenPacket != null)
                         return ReceivedPrivateChannelOpenPacket(p);
                     break;
                 case PacketType.Projectile:
-                    p = new ProjectilePacket(null, packet);
+                    p = new ProjectilePacket(packet);
                     length = p.Index;
                     if (ReceivedProjectilePacket != null)
                         return ReceivedProjectilePacket(p);
                     break;
                 case PacketType.SkillUpdate:
-                    p = new SkillUpdatePacket(null, packet);
+                    p = new SkillUpdatePacket(packet);
                     if (ReceivedSkillUpdatePacket != null)
                         return ReceivedSkillUpdatePacket(p);
                     break;
                 case PacketType.StatusMessage:
-                    p = new StatusMessagePacket(null, packet);
+                    p = new StatusMessagePacket(packet);
                     length = p.Index;
                     if (ReceivedStatusMessagePacket != null)
                         return ReceivedStatusMessagePacket(p);
                     break;
                 case PacketType.StatusUpdate:
-                    p = new StatusUpdatePacket(null, packet, true);
+                    p = new StatusUpdatePacket(packet, true);
                     length = p.Index;
                     if (ReceivedStatusUpdatePacket != null)
                         return ReceivedStatusUpdatePacket(p);
                     break;
                 case PacketType.TileAnimation:
-                    p = new TileAnimationPacket(null, packet);
+                    p = new TileAnimationPacket(packet);
                     length = p.Index;
                     if (ReceivedTileAnimationPacket != null)
                         return ReceivedTileAnimationPacket(p);
                     break;
                 case PacketType.VipAdd:
-                    p = new VipAddPacket(null, packet);
+                    p = new VipAddPacket(packet);
                     length = p.Index;
                     if (ReceivedVipAddPacket != null)
                         return ReceivedVipAddPacket(p);
                     break;
                 case PacketType.VipLogin:
-                    p = new VipLoginPacket(null, packet);
+                    p = new VipLoginPacket(packet);
                     length = p.Index;
                     if (ReceivedVipLoginPacket != null)
                         return ReceivedVipLoginPacket(p);
                     break;
                 case PacketType.VipLogout:
-                    p = new VipLogoutPacket(null, packet);
+                    p = new VipLogoutPacket(packet);
                     length = p.Index;
                     if (ReceivedVipLogoutPacket != null)
                         return ReceivedVipLogoutPacket(p);
                     break;
                 case PacketType.WorldLight:
-                    p = new WorldLightPacket(null, packet);
+                    p = new WorldLightPacket(packet);
                     length = p.Index;
                     if (ReceivedWorldLightPacket != null)
                         return ReceivedWorldLightPacket(p);
@@ -672,6 +966,21 @@ namespace Tibia_Chat
             }
             return true;
         }
+
+        private void SendPacket(byte[] packet)
+        {
+            try
+            {
+                if (GameLoginSock.Connected)
+                    GameLoginSock.Send(EncryptPacket(packet));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString(), "Tibia Chat - Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        #endregion
+
 
         #region Encryption
         /// <summary>
@@ -705,38 +1014,6 @@ namespace Tibia_Chat
         }
         #endregion
 
-        private void pingTimerCallback(object o)
-        {
-            if(loggedin)
-                GameLoginSock.Send(Tibia.Util.XTEA.Encrypt(new byte[] { 0x01, 0x00, 0x1E }, xtea, true));
-        }
-
-        private void ParseCharList(byte[] packet)
-        {
-            CharListPacket clpacket = new CharListPacket(CharListDecrypted);
-            clpacket.ParseData(packet);
-            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
-            (System.Threading.ThreadStart)delegate()
-                        {
-                            
-                _mycharacters.Clear();
-                for (int i = 0; i < clpacket.chars.Length; i++)
-                {
-                    _mycharacters.Add(new CharListChar{
-                        lenCharName=clpacket.chars[i].lenCharName,
-                        charName=clpacket.chars[i].charName,
-                        lenWorldName=clpacket.chars[i].lenWorldName,
-                        worldName=clpacket.chars[i].worldName,
-                        worldIP=clpacket.chars[i].worldIP,
-                        worldPort=clpacket.chars[i].worldPort,
-                    });
-                }
-                conExpander.IsExpanded = false;
-                charsExpander.IsEnabled = true;
-                charsExpander.IsExpanded = true;
-            });
-        }
-
         public class CharListChar
         {
             public short lenCharName { get; set; }
@@ -746,10 +1023,7 @@ namespace Tibia_Chat
             public string worldIP { get; set; }
             public short worldPort { get; set; }
         }
-
-        public ObservableCollection<CharListChar> mycharacters
-        { get { return _mycharacters; } }
-
+        
         public class LoginServer
         {
             public string IP = null;
@@ -761,11 +1035,12 @@ namespace Tibia_Chat
             }
         }
 
+        #region connection packets
         public class Clientless
         {
             public static byte[] CreateCharListPacket(string accname, string password, string version, byte[] signatures, byte[] xtea)
-            {                
-                PacketBuilder p = new PacketBuilder(null);
+            {
+                PacketBuilder p = new PacketBuilder();
                 p.AddByte(0x01);
                 p.AddInt(0x02);//OS
                 p.AddInt(Convert.ToUInt16(version));
@@ -789,7 +1064,7 @@ namespace Tibia_Chat
                 }
                 p.AddBytes(xtea);
                 p.AddString(accname);
-                p.AddString(password);              
+                p.AddString(password);
                 byte[] toencrypt = new byte[128];
                 Array.Copy(p.Data, 17, toencrypt, 0, 128);
                 BigInteger message = new BigInteger(toencrypt);
@@ -805,7 +1080,7 @@ namespace Tibia_Chat
 
             public static byte[] CreateGameLoginPacket(string accname, string password, string charname, string version, byte[] xtea)
             {
-                PacketBuilder p=new PacketBuilder(null);
+                PacketBuilder p = new PacketBuilder();
                 p.AddByte(0xA);
                 p.AddInt(0x2);
                 p.AddInt(Convert.ToUInt16(version));
@@ -844,7 +1119,8 @@ namespace Tibia_Chat
                 return Tibia.Util.XTEA.AddAdlerChecksum(p.GetPacket());
             }
         }
+        #endregion
 
-        }
     }
+}
 
