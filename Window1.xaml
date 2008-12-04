@@ -2,11 +2,11 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     DataContext="{Binding RelativeSource={RelativeSource Self}}"
-    Title="Tibia Chat" WindowStartupLocation="CenterScreen" SizeToContent="WidthAndHeight" 
+    Title="Tibia Chat" FontWeight="bold" WindowStartupLocation="CenterScreen" SizeToContent="WidthAndHeight" 
          Loaded="wndLoaded" ResizeMode="CanMinimize" MaxWidth="544" MaxHeight="770">
     <StackPanel>
         <Expander Name="conExpander" Margin="5" Header="Connection" IsExpanded="True">
-        <Grid>
+        <Grid >
             <Grid.RowDefinitions>
                 <RowDefinition></RowDefinition>
                 <RowDefinition></RowDefinition>
@@ -15,15 +15,15 @@
                 <RowDefinition></RowDefinition>
             </Grid.RowDefinitions>
             <Label Grid.Row="0" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">Account:</Label>
-            <PasswordBox HorizontalContentAlignment="Center" Width="200" Name="txtacc" Grid.Row="1" Margin="5,0,5,0" VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
+            <PasswordBox GotFocus="makeButtonDefault" HorizontalContentAlignment="Center" Width="200" Name="txtacc" Grid.Row="1" Margin="5,0,5,0" VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
             <Label Grid.Row="2" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">Password:</Label>
-            <PasswordBox HorizontalContentAlignment="Center" Width="200" Name="txtpass" Grid.Row="3" Margin="5,0,5,5"  VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
+            <PasswordBox GotFocus="makeButtonDefault" HorizontalContentAlignment="Center" Width="200" Name="txtpass" Grid.Row="3" Margin="5,0,5,5"  VerticalAlignment="Center" PasswordChar="*"></PasswordBox>
             <Button Width="100" Name="LoginBtn" Grid.Row="4" Margin="5" Click="LoginBtnClick" >Login</Button>
         </Grid>
         </Expander>
         <Expander IsExpanded="True" Name="charsExpander" Margin="5" Header="Characters" IsEnabled="true">
             <StackPanel>
-            <ListView ScrollViewer.CanContentScroll="True"  SelectionMode="Single" Name="charsListView"  ItemsSource="{Binding mycharacters}"
+            <ListView GotFocus="makeButtonDefault" ScrollViewer.CanContentScroll="True"  SelectionMode="Single" Name="charsListView"  ItemsSource="{Binding mycharacters}"
                       Margin="5" MinWidth="200" Height="100">
                 <ListView.View>
                     <GridView>
@@ -50,9 +50,9 @@
                     <ColumnDefinition ></ColumnDefinition>
                     <ColumnDefinition Width="50"></ColumnDefinition>
                 </Grid.ColumnDefinitions>
-                <TabControl ItemsSource="{Binding tabItemCollection}" Name="convosTab"   
+                <TabControl GotFocus="makeButtonDefault" FontWeight="normal" SelectionChanged="convosTab_SelectionChanged" IsEnabled="False" ItemsSource="{Binding tabItemCollection}" Name="convosTab"   
                         Grid.ColumnSpan="2" Margin="5" 
-                        ContextMenuService.ShowOnDisabled="True"
+                        ContextMenuService.ShowOnDisabled="False"
                         Height="300" Width="500">
                     <TabControl.ContextMenu>
                         <ContextMenu>
@@ -62,8 +62,8 @@
                         </ContextMenu>
                     </TabControl.ContextMenu>
                 </TabControl>
-                <TextBox KeyDown="messagetxt_KeyDown" Name="messagetxt" MaxLength="255" Margin="5" Grid.Row="1"></TextBox>
-                <Button Name="sendbtn" IsEnabled="False" Click="SendClick" Grid.Row="1" Grid.Column="1" Margin="5">Send</Button>
+                <TextBox GotFocus="makeButtonDefault" IsEnabled="False" Name="messagetxt" MaxLength="255" Margin="5" Grid.Row="1"></TextBox>
+                <Button Name="SendBtn" IsEnabled="False" Click="SendClick" Grid.Row="1" Grid.Column="1" Margin="5">Send</Button>
             </Grid>
         </Expander>
     </StackPanel>
