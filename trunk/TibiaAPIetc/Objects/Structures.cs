@@ -48,5 +48,10 @@ namespace Tibia.Objects
             Id = id;
             Name = name;
         }
+
+        public override string ToString()
+        {
+            return this.Name;
+        }
     }
 }

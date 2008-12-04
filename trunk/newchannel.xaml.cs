@@ -19,22 +19,30 @@ namespace Tibia_Chat
     /// </summary>
     public partial class newchannel : Window
     {
-        ObservableCollection<TabItem> tabs;
         string header;
-        public newchannel(ObservableCollection<TabItem> tabItemColl)
+        List<Tibia.Objects.Channel> available;
+        public newchannel(List<Tibia.Objects.Channel> AvailableChannels)
         {
             InitializeComponent();
-            tabs = tabItemColl;
+            this.Loaded+=new RoutedEventHandler(newchannel_Loaded);
             GradientStopCollection gsc = new GradientStopCollection();
             gsc.Add(new GradientStop(Color.FromArgb(255, 204, 232, 255), 0.3));
             gsc.Add(new GradientStop(Color.FromArgb(255, 125, 175, 255), 1));
             this.Background = new LinearGradientBrush(gsc);
             chantxt.Focus();
+            available = AvailableChannels;
         }
 
-        public static string ShowBox(ObservableCollection<TabItem> tabItemColl)
+        private void newchannel_Loaded(object sender, RoutedEventArgs e)
         {
-            newchannel dialog = new newchannel(tabItemColl);
+            foreach (Tibia.Objects.Channel channel in available)
+            {
+                channelListBox.Items.Add(channel.Name);
+            }
+        }
+        public static string ShowBox(List<Tibia.Objects.Channel> AvailableChannels)
+        {
+            newchannel dialog = new newchannel(AvailableChannels);
             dialog.ShowDialog();
             return dialog.header;
         }
@@ -52,7 +60,7 @@ namespace Tibia_Chat
 
         private void SelectionChange(object sender, RoutedEventArgs e)
         {
-            chantxt.Text = ((ListBoxItem)channelListBox.SelectedItem).Content.ToString();
+            chantxt.Text = channelListBox.SelectedItem.ToString();
         }
 
         private void KeyDownE(object sender, KeyEventArgs e)
@@ -66,8 +74,16 @@ namespace Tibia_Chat
 
         private void TryOpen()
         {
-            if (chantxt.Text != string.Empty)
+            if (chantxt.Text.Length>0)
             {
+                foreach (object o in channelListBox.Items)
+                {
+                    if (o.ToString().ToLower() == chantxt.Text.ToString().ToLower())
+                    {
+                        header = o.ToString();
+                        return;
+                    }
+                }
                 header = chantxt.Text;
             }
         }
