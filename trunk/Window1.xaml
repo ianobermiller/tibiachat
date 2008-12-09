@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     DataContext="{Binding RelativeSource={RelativeSource Self}}"
     Title="Tibia Chat" FontWeight="bold" WindowStartupLocation="CenterScreen" SizeToContent="WidthAndHeight" 
-         Loaded="wndLoaded" ResizeMode="CanMinimize" MaxWidth="544" MaxHeight="770">
+         Loaded="wndLoaded" Closed="Window_Closed" ResizeMode="CanMinimize" MaxWidth="544" >
     <StackPanel>
         <Expander Name="conExpander" Margin="5" Header="Connection" IsExpanded="True">
         <Grid >
@@ -41,17 +41,19 @@
             </StackPanel>            
         </Expander>
         <Expander IsExpanded="True" Margin="5" Header="Conversations" Name="convExpander" >
-            <Grid >
+            <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition></RowDefinition>
                     <RowDefinition></RowDefinition>
                     <RowDefinition></RowDefinition>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition ></ColumnDefinition>
                     <ColumnDefinition Width="50"></ColumnDefinition>
+                    <ColumnDefinition Width="Auto"></ColumnDefinition>
                 </Grid.ColumnDefinitions>
                 <TabControl GotFocus="makeButtonDefault" FontWeight="normal" SelectionChanged="convosTab_SelectionChanged" IsEnabled="False" ItemsSource="{Binding tabItemCollection}" Name="convosTab"   
-                        Grid.ColumnSpan="2" Margin="5" 
+                        Grid.ColumnSpan="3" Margin="5" 
                         ContextMenuService.ShowOnDisabled="False"
                         Height="300" Width="500">
                     <TabControl.ContextMenu>
@@ -59,11 +61,32 @@
                             <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Open Channel" Click="OpenChannel"/>
                             <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Close Channel" Click="CloseChannel"/>
                             <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Clear Channel" Click="ClearChannel"/>
+                            <MenuItem Background="Transparent" Margin="0" Padding="0" Header="Show Vip List" Click="ShowVipList"/>
                         </ContextMenu>
                     </TabControl.ContextMenu>
-                </TabControl>
-                <TextBox GotFocus="makeButtonDefault" IsEnabled="False" Name="messagetxt" MaxLength="255" Margin="5" Grid.Row="1"></TextBox>
-                <Button Name="SendBtn" IsEnabled="False" Click="SendClick" Grid.Row="1" Grid.Column="1" Margin="5">Send</Button>
+                </TabControl>                
+                <TextBox GotFocus="makeButtonDefault" IsEnabled="False" 
+                         Name="messagetxt" MaxLength="255" Margin="5" 
+                         Grid.Row="1"></TextBox>
+                <Button Name="SendBtn" IsEnabled="False" Click="SendClick" 
+                        Grid.Row="1" Grid.Column="1" 
+                        Margin="5">Send</Button>
+                <Image Margin="5" Grid.Row="1" Grid.Column="2" Source="soundbtn.png" Stretch="None">
+                    <Image.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Vip">
+                                <CheckBox Name="v_inChk" IsChecked="True">Sound when Vip logs in</CheckBox>
+                                <CheckBox Name="v_outChk" IsChecked="True">Sound when Vip logs out</CheckBox>
+                            </MenuItem>
+                            <MenuItem Header="Message">
+                                <CheckBox Name="m_anyChk" >Sound when messaged on any channel</CheckBox>
+                                <CheckBox Name="m_pvtChk" >Sound when messaged on private</CheckBox>
+                                <CheckBox Name="m_vipChk" IsChecked="True">Sound when messaged by VIP on private</CheckBox>
+                            </MenuItem>
+                        </ContextMenu>
+                    </Image.ContextMenu>
+                </Image>
+                <Label Grid.ColumnSpan="3" Name="notificationLabel" Height="25" Grid.Row="2" />
             </Grid>
         </Expander>
     </StackPanel>
