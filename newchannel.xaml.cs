@@ -21,6 +21,7 @@ namespace Tibia_Chat
     {
         string header;
         List<Tibia.Objects.Channel> available;
+
         public newchannel(List<Tibia.Objects.Channel> AvailableChannels)
         {
             InitializeComponent();
@@ -37,7 +38,10 @@ namespace Tibia_Chat
         {
             foreach (Tibia.Objects.Channel channel in available)
             {
-                channelListBox.Items.Add(channel.Name);
+                ListBoxItem lbi = new ListBoxItem();
+                lbi.Content = channel.Name;
+                lbi.MouseDoubleClick += new MouseButtonEventHandler(lbi_MouseDoubleClick);
+                channelListBox.Items.Add(lbi);
             }
         }
         public static string ShowBox(List<Tibia.Objects.Channel> AvailableChannels)
@@ -60,7 +64,7 @@ namespace Tibia_Chat
 
         private void SelectionChange(object sender, RoutedEventArgs e)
         {
-            chantxt.Text = channelListBox.SelectedItem.ToString();
+            chantxt.Text = ((ListBoxItem)channelListBox.SelectedItem).Content.ToString();
         }
 
         private void KeyDownE(object sender, KeyEventArgs e)
@@ -80,12 +84,18 @@ namespace Tibia_Chat
                 {
                     if (o.ToString().ToLower() == chantxt.Text.ToString().ToLower())
                     {
-                        header = o.ToString();
+                        header = ((ListBoxItem)o).Content.ToString();
                         return;
                     }
                 }
                 header = chantxt.Text;
             }
+        }
+
+        private void lbi_MouseDoubleClick(object sender, RoutedEventArgs e)
+        {
+            TryOpen();
+            this.Close();
         }
     }
 }

@@ -15,6 +15,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.IO;
 using Tibia.Packets;
 
 namespace Tibia_Chat
@@ -27,6 +28,7 @@ namespace Tibia_Chat
         #region variables
         ObservableCollection<CharListChar> _mycharacters = new ObservableCollection<CharListChar>();
         ObservableCollection<TabItem> _tabItemCollection = new ObservableCollection<TabItem>();
+        List<Vip> viplist = new List<Vip>();
         Socket CharListSock;
         Socket GameLoginSock;
         Queue<byte[]> serverReceiveQueue = new Queue<byte[]>();
@@ -34,6 +36,7 @@ namespace Tibia_Chat
         int sentmessageindex = 0;
 
         List<Tibia.Objects.Channel> availablechannels = new List<Tibia.Objects.Channel>();
+        VipWindow vipwindow = new VipWindow();
 
         string AccName;
         string AccPass;
@@ -44,6 +47,9 @@ namespace Tibia_Chat
         byte[] CharLoginPacket;
         byte[] GameLoginPacket;
         byte[] CharListDecrypted;
+        private bool moreToCome = false;
+        private int bytesLeftToCome = 0;
+        private byte[] toJoin;
         double currprogress;
         double maxprogress;
         string waitingmessage = null;
@@ -67,7 +73,10 @@ namespace Tibia_Chat
         };
         System.Threading.Timer pingTimer;
         System.Threading.Timer progressTimer;
+        System.Media.SoundPlayer online = new System.Media.SoundPlayer();
+        System.Media.SoundPlayer message = new System.Media.SoundPlayer();
         bool blocktimer;
+        double danceCount;
         #endregion
 
         #region Events
@@ -142,14 +151,23 @@ namespace Tibia_Chat
         public Window1()
         {
             InitializeComponent();
-            //attaching received message event..
+            GradientStopCollection gsc = new GradientStopCollection();
+            gsc.Add(new GradientStop(Color.FromArgb(255, 204, 232, 255), 0.3));
+            gsc.Add(new GradientStop(Color.FromArgb(255, 125, 175, 255), 1));
+            this.Background = new LinearGradientBrush(gsc);
+            //attaching proxy events..
             this.ReceivedChatMessagePacket += ChatMessageReceived;
             this.ReceivedChannelListPacket += ChannelListReceived;
             this.ReceivedPrivateChannelOpenPacket += PrivateChannelOpenReceived;
-            GradientStopCollection gsc=new GradientStopCollection();
-            gsc.Add(new GradientStop(Color.FromArgb(255, 204, 232, 255),0.3));
-            gsc.Add(new GradientStop(Color.FromArgb(255, 125, 175, 255), 1));
-            this.Background = new LinearGradientBrush(gsc);
+            this.ReceivedVipAddPacket += VipAddReceived;
+            this.ReceivedVipLoginPacket += VipLoginReceived;
+            this.ReceivedVipLogoutPacket += VipLogoutReceived;
+            this.ReceivedStatusMessagePacket += StatusMessageReceived;
+            //
+            vipwindow.ListBoxItemDoubleClicked += new VipWindow.DoubleClick(LBIDoubleClicked);
+            vipwindow.btnAdd.Click+=new RoutedEventHandler(btnAdd_Click);
+            vipwindow.btnRemove.Click+=new RoutedEventHandler(btnRemove_Click);
+            vipwindow.btnOpen.Click+=new RoutedEventHandler(btnOpen_Click);
         }
 
         private void wndLoaded(object sender, RoutedEventArgs e)
@@ -158,7 +176,27 @@ namespace Tibia_Chat
             AddTab("Default");
             convosTab.SelectedItem = convosTab.Items[0];
         }
-
+        
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            App.Current.Shutdown();
+        }
+        
+        private void PlaySound(string path)
+        {
+            try
+            {
+                FileStream fs=new FileStream(path,FileMode.Open);
+                System.Media.SoundPlayer sp=new System.Media.SoundPlayer(fs);
+                sp.Play();
+                fs.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not play "+path+"\n"+ex.ToString(),"Tibia Chat",
+                    MessageBoxButton.OK, MessageBoxImage.Exclamation);
+            }
+        }
         private void LoginBtnClick(object sender, RoutedEventArgs e)
         {            
             loginsvindex = 0;
@@ -232,6 +270,20 @@ namespace Tibia_Chat
             }
         }
 
+        private void convosTab_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                ((TabItem)convosTab.SelectedItem).Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+                ((TextBox)(((TabItem)convosTab.SelectedItem).Content)).ScrollToEnd();
+                messagetxt.Focus();
+            }
+            catch
+            {
+            }
+        }
+
+        #region connection events
         private bool ChatMessageReceived(Packet packet)
         {
             ChatMessagePacket p = new ChatMessagePacket(packet.Data);
@@ -239,23 +291,51 @@ namespace Tibia_Chat
             this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
             (System.Threading.ThreadStart)delegate()
             {
+                if(p.SenderLevel!=0)
+                    notificationLabel.Content = DateTime.Now.ToString().Split()[1] + " - " + "You have received a message from " + p.SenderName + ".";
+                    
                 switch (p.MessageType)
                 {
                     case ChatType.PrivateMessage:
+                            if (m_pvtChk.IsChecked == true)
+                            {
+                                PlaySound("message.wav");
+                            }
+                            else if (m_vipChk.IsChecked == true)
+                            {
+                                foreach (Vip vip in viplist)
+                                    if (p.SenderName == vip.Name)
+                                    {
+                                        PlaySound("message.wav");
+                                        break;
+                                    }
+                            }
+                            else if (m_anyChk.IsChecked == true)                            
+                                PlaySound("message.wav");
                         if(!AppendText(p.SenderName.ToLower(),p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n"))
                             AppendText("Default".ToLower(),"(PVT) " + p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
                         break;
                     case ChatType.Normal:
                     case ChatType.Whisper:
                     case ChatType.Yell:
-                        AppendText("Default".ToLower(), p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                        if (m_anyChk.IsChecked == true)
+                        {
+                            PlaySound("message.wav");
+                        }
+                        string level;
+                        if (p.SenderLevel == 0) level = ": ";
+                        else level = " [" + p.SenderLevel.ToString() + "]: ";
+                        AppendText("Default".ToLower(), p.SenderName + level + p.Message + "\n");
                         break;
                     case ChatType.ChannelNormal:
                         foreach (Tibia.Objects.Channel channel in availablechannels)
                         {
                             if (p.Channel == channel.Id)
                             {
+                                if (m_anyChk.IsChecked == true)                                    
+                                    PlaySound("message.wav");
                                 AppendText(channel.Name.ToLower(), p.SenderName + " [" + p.SenderLevel + "]: " + p.Message + "\n");
+                                break;
                             }
                         }
                         break;                        
@@ -316,18 +396,69 @@ namespace Tibia_Chat
             return true;
         }
 
-        private void convosTab_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private bool VipAddReceived(Packet packet)
         {
-            try
-            {
-                ((TabItem)convosTab.SelectedItem).Foreground = new SolidColorBrush(Color.FromRgb(0, 0, 0));
-                ((TextBox)(((TabItem)convosTab.SelectedItem).Content)).ScrollToEnd();
-                messagetxt.Focus();
-            }
-            catch
-            {
-            }
+            VipAddPacket p=new VipAddPacket(packet.Data);
+            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                (System.Threading.ThreadStart)delegate(){
+                    Vip newvip = new Vip(p.Id, p.Name, p.LoggedIn);
+                    viplist.Add(newvip);
+                    vipwindow.AddVip(newvip); 
+                });
+            return true;
         }
+
+        private bool VipLoginReceived(Packet packet)
+        {
+            VipLoginPacket p = new VipLoginPacket(packet.Data);
+            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                (System.Threading.ThreadStart)delegate()
+            {
+                    if (v_inChk.IsChecked == true)                    
+                        PlaySound("online.wav");                
+                    foreach(Vip vip in viplist)
+                        if(vip.Id==p.PlayerId){
+                            vip.Online=true;
+                            notificationLabel.Content = DateTime.Now.ToString().Split()[1] + " - " + vip.Name + " has logged in.";
+                            vipwindow.UpdateVip(vip);
+                            return;
+                        }
+                });
+            return true;
+        }
+
+        private bool VipLogoutReceived(Packet packet)
+        {
+            VipLogoutPacket p = new VipLogoutPacket(packet.Data);
+            this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
+                (System.Threading.ThreadStart)delegate()
+                {
+                    if (v_outChk.IsChecked == true)
+                        PlaySound("online.wav");
+                    
+                foreach (Vip vip in viplist)
+                    if (vip.Id == p.PlayerId)
+                    {
+                        vip.Online = false;
+                        notificationLabel.Content = DateTime.Now.ToString().Split()[1] +" - "+ vip.Name + " has logged out.";
+                        vipwindow.UpdateVip(vip);
+                        return;
+                    }
+            });
+            return true;
+        }
+
+        private bool StatusMessageReceived(Packet packet)
+        {
+            StatusMessagePacket p = new StatusMessagePacket(packet.Data);
+            if (p.Message == "A player with this name is not online.")
+                this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, (System.Threading.ThreadStart)delegate()
+                {
+                    notificationLabel.Content = DateTime.Now.ToString().Split()[1] + " - " + p.Message;
+                });
+            return true;
+        }
+        #endregion
 
         #region tabcontrol contextmenu
         private void OpenChannel(object sender, RoutedEventArgs e)
@@ -345,6 +476,15 @@ namespace Tibia_Chat
         private void ClearChannel(object sender, RoutedEventArgs e)
         {
             ((TextBox)((TabItem)convosTab.SelectedItem).Content).Clear();
+        }
+        
+        private void ShowVipList(object sender, RoutedEventArgs e)
+        {
+            if (vipwindow.Visibility == Visibility.Hidden || vipwindow.Visibility == Visibility.Collapsed)
+            {
+                vipwindow.Show();
+                vipwindow.BringIntoView();
+            }
         }
         #endregion
 
@@ -366,7 +506,7 @@ namespace Tibia_Chat
                         sentmessageindex = 0;
                         sentmessages.Add(messagetxt.Text);
                         AppendText(((TabItem)convosTab.SelectedItem).Header.ToString(),
-                            charname + " [0]: " + messagetxt.Text + "\n");
+                            charname + ": " + messagetxt.Text + "\n");
                         messagetxt.Clear();
                         return;
                     }
@@ -391,11 +531,95 @@ namespace Tibia_Chat
         }
         #endregion
 
+        #region vip
+        private void btnAdd_Click(object sender, RoutedEventArgs e)
+        {
+            string name = vipwindow.txtVipname.Text;
+            if (name.Length > 0)
+            {
+                foreach (Vip vip in viplist)
+                {
+                    if (vip.Name == name) return;
+                }
+                PacketBuilder p = new PacketBuilder();
+                p.AddByte(0xDC);
+                p.AddString(name);
+                SendPacket(p.GetPacket());
+            }
+        }
+        private void btnRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if(vipwindow.vipListBox.SelectedItem!=null)
+            foreach(Vip vip in viplist)
+            {
+                if (vip.Name == ((ListBoxItem)vipwindow.vipListBox.SelectedItem).Content)
+                {
+                    PacketBuilder p = new PacketBuilder();
+                    p.AddByte(0xDD);
+                    p.AddLong(vip.Id);
+                    viplist.Remove(vip);
+                    SendPacket(p.GetPacket());
+                    this.Dispatcher.BeginInvoke(DispatcherPriority.Normal, (System.Threading.ThreadStart)delegate()
+                    {
+                        vipwindow.vipListBox.Items.Remove(vipwindow.vipListBox.SelectedItem);
+                    });
+                    return;
+                }
+            }
+        }
+        private void btnOpen_Click(object sender, RoutedEventArgs e)
+        {
+            if (vipwindow.txtVipname.Text.Length > 0)
+            {
+                foreach (TabItem tab in _tabItemCollection)
+                {
+                    if (tab.Header.ToString().ToLower() == vipwindow.txtVipname.Text.ToLower())
+                        return;
+                }
+                PacketBuilder pb = new PacketBuilder();
+                pb.AddByte(0x9A);
+                pb.AddString(vipwindow.txtVipname.Text);
+                //sending to the server a open private channel request
+                //it'll return the correct name of the player if it exists
+                SendPacket(pb.GetPacket());        
+            }
+        }
+        private void LBIDoubleClicked(string name)
+        {
+            if (name.Length > 0)
+            {
+                foreach (TabItem tab in _tabItemCollection)
+                {
+                    if (tab.Header.ToString().ToLower() == name.ToLower())
+                        return;
+                }
+                PacketBuilder pb = new PacketBuilder();
+                pb.AddByte(0x9A);
+                pb.AddString(name);
+                //sending to the server a open private channel request
+                //it'll return the correct name of the player if it exists
+                SendPacket(pb.GetPacket());
+            }
+        }
+
+        #endregion
+
         #region timers
         private void pingTimerCallback(object o)
         {
             if (loggedin)
+            {
                 SendPacket(new byte[] { 0x01, 0x00, 0x1E });
+                danceCount += 0.5;
+                if (danceCount >= 10)
+                {
+                    System.Threading.Thread.Sleep(200);
+                    SendPacket(new byte[] { 0x01, 0x00, 0x6F });
+                    System.Threading.Thread.Sleep(200);
+                    SendPacket(new byte[] { 0x01, 0x00, 0x71 });
+                    danceCount = 0;
+                }
+            }
         }
 
         private void progressTimerCallback(object o)
@@ -423,6 +647,7 @@ namespace Tibia_Chat
                             conProgress.ToolTip = null;
                             conProgress.Value = 0;
                         });
+                    System.Threading.Thread.Sleep(500);
                     ConnectChar();
                 }
             }
@@ -609,7 +834,8 @@ namespace Tibia_Chat
                 ConnectBtn.IsEnabled = false;
             });
             //connecting the selected char on the listview
-            GameLoginSock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            GameLoginSock = new Socket(AddressFamily.InterNetwork, 
+                SocketType.Stream, ProtocolType.Tcp);
             GameLoginSock.BeginConnect(_mycharacters[charindex].worldIP,
                 _mycharacters[charindex].worldPort,
                 (AsyncCallback)GameServerConnect, null);
@@ -630,31 +856,56 @@ namespace Tibia_Chat
         private void GameServerReceive(IAsyncResult ar)
         {
             int bytesRead = GameLoginSock.EndReceive(ar);
+            if (bytesRead == 0) return;
             int offset = 0;
 
             while (bytesRead - offset > 0)
             {
-                // Get the packet length
-                int packetlength = BitConverter.ToInt16(dataGameServer, offset) + 2;
-                //for some reason weird packets are being received sometimes...
-                if (packetlength > 0)
+                // Parse the data into a single packet
+                if (moreToCome)
                 {
-                    // Parse the data into a single packet
-                    byte[] packet = new byte[packetlength];
-                    Array.Copy(dataGameServer, offset, packet, 0, packetlength);
+                    if (bytesRead >= bytesLeftToCome)
+                    {
+                        Array.Copy(dataGameServer, offset, toJoin, toJoin.Length - bytesLeftToCome, bytesLeftToCome);
+                        serverReceiveQueue.Enqueue(toJoin);
 
-                    serverReceiveQueue.Enqueue(packet);
+                        offset += bytesLeftToCome;
+                        moreToCome = false;
+                    }
+                    else
+                    {
+                        Array.Copy(dataGameServer, offset, toJoin,
+                            toJoin.Length - bytesLeftToCome + bytesRead, bytesRead);
 
-                    offset += packetlength;
+                        bytesLeftToCome -= bytesRead;
+                        offset += bytesRead;
+                    }
                 }
                 else
                 {
+                    // Get the packet length
+                    int packetlength = BitConverter.ToInt16(dataGameServer, offset) + 2;
+                    if (packetlength <= bytesRead)
+                    {
+                        byte[] packet = new byte[packetlength];
+                        Array.Copy(dataGameServer, offset, packet, 0, packetlength);
+
+                        serverReceiveQueue.Enqueue(packet);
+                    }
+                    else
+                    {
+                        toJoin = new byte[packetlength];
+                        Array.Copy(dataGameServer, offset, toJoin, 0, packetlength);
+                        bytesLeftToCome = packetlength - bytesRead;
+                        moreToCome = true;
+                    }
+                    offset += packetlength;
                 }
             }
 
-            ProcessServerReceiveQueue();
+            if (!moreToCome) ProcessServerReceiveQueue();
 
-            if(!(disconnecting || !GameLoginSock.Connected || !loggedin))
+            if(!(disconnecting || !GameLoginSock.Connected /*|| !loggedin*/))
             try
             {
                 GameLoginSock.BeginReceive(dataGameServer, 0, dataGameServer.Length,
@@ -691,7 +942,7 @@ namespace Tibia_Chat
         {
             GameLoginSock.EndDisconnect(ar);
             disconnecting = false;
-            pingTimer.Dispose();
+            if(pingTimer!=null)pingTimer.Dispose();
             this.Dispatcher.Invoke(DispatcherPriority.Normal,
             (System.Threading.ThreadStart)delegate()
             {
@@ -705,6 +956,7 @@ namespace Tibia_Chat
                 ConnectBtn.IsEnabled = true;
                 SendBtn.IsEnabled = false;
                 ConnectBtn.Content = "Connect";
+                notificationLabel.Content = "You are now logged out.";
             });
         }
 
@@ -761,11 +1013,16 @@ namespace Tibia_Chat
                                 if (decrypted[2] == (int)PacketType.AddCreature || decrypted[2]==0xA3)
                                 {
                                     loggedin = true;
+                                    viplist = Vip.GetVips(decrypted);
                                     //starting to ping the server so as to not be disconnected
                                     pingTimer = new System.Threading.Timer(pingTimerCallback, null, 30000, 30000);
+                                    danceCount = 0;
                                     this.Dispatcher.BeginInvoke(DispatcherPriority.Normal,
                                     (System.Threading.ThreadStart)delegate()
                                     {
+                                        vipwindow.ClearVips();
+                                        foreach (Vip vip in viplist)
+                                            vipwindow.AddVip(vip);
                                         LoginBtn.IsEnabled = true;
                                         SendBtn.IsEnabled = true;
                                         ConnectBtn.Content = "Disconnect";
@@ -773,6 +1030,7 @@ namespace Tibia_Chat
                                         convExpander.IsExpanded = true;
                                         convosTab.IsEnabled = true;
                                         messagetxt.IsEnabled = true;
+                                        notificationLabel.Content = "You are now logged in.";
                                     });
                                 }
                                 //waiting list, not our turn or server overloaded
@@ -852,8 +1110,8 @@ namespace Tibia_Chat
                         return ReceivedCancelAutoWalkPacket(p);
                     break;*/
                 case PacketType.ChannelList:
-                    p = new ChannelListPacket(packet);
-                    length = p.Index;
+                    p = new ChannelListPacket(packet);                                        
+                    //length = p.Index;
                     if (ReceivedChannelListPacket != null)
                         return ReceivedChannelListPacket(p);
                     break;/*
@@ -865,7 +1123,7 @@ namespace Tibia_Chat
                     break;*/
                 case PacketType.ChatMessage:
                     p = new ChatMessagePacket(packet);
-                    length = p.Index;
+                    //length = p.Index;
                     if (ReceivedChatMessagePacket != null)
                         return ReceivedChatMessagePacket(p);
                     break;/*
@@ -1003,7 +1261,7 @@ namespace Tibia_Chat
                     break;*/
                 case PacketType.PrivateChannelOpen:
                     p = new PrivateChannelOpenPacket(packet);
-                    length = p.Index;
+                    //length = p.Index;
                     if (ReceivedPrivateChannelOpenPacket != null)
                         return ReceivedPrivateChannelOpenPacket(p);
                     break;/*
@@ -1017,13 +1275,13 @@ namespace Tibia_Chat
                     p = new SkillUpdatePacket(packet);
                     if (ReceivedSkillUpdatePacket != null)
                         return ReceivedSkillUpdatePacket(p);
-                    break;
+                    break;*/
                 case PacketType.StatusMessage:
                     p = new StatusMessagePacket(packet);
                     length = p.Index;
                     if (ReceivedStatusMessagePacket != null)
                         return ReceivedStatusMessagePacket(p);
-                    break;
+                    break;/*
                 case PacketType.StatusUpdate:
                     p = new StatusUpdatePacket(packet, true);
                     length = p.Index;
@@ -1035,7 +1293,7 @@ namespace Tibia_Chat
                     length = p.Index;
                     if (ReceivedTileAnimationPacket != null)
                         return ReceivedTileAnimationPacket(p);
-                    break;
+                    break;*/
                 case PacketType.VipAdd:
                     p = new VipAddPacket(packet);
                     length = p.Index;
@@ -1053,7 +1311,7 @@ namespace Tibia_Chat
                     length = p.Index;
                     if (ReceivedVipLogoutPacket != null)
                         return ReceivedVipLogoutPacket(p);
-                    break;
+                    break;/*
                 case PacketType.WorldLight:
                     p = new WorldLightPacket(packet);
                     length = p.Index;

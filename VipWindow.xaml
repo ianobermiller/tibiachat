@@ -1,0 +1,22 @@
+﻿<Window x:Class="Tibia_Chat.VipWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Vip" Closing="Window_Closing" MinWidth="200" Width="207" MinHeight="200" Height="200">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <ListBox SelectionChanged="vipListBox_SelectionChanged" Grid.ColumnSpan="3" Name="vipListBox" Margin="5" ScrollViewer.VerticalScrollBarVisibility="Visible"/>
+        <TextBox Name="txtVipname" Grid.Row="1" Grid.ColumnSpan="3" Margin="5" Height="25"></TextBox>
+        <Button Name="btnAdd" Grid.Row="2" Margin="4" Height="25">Add</Button>
+        <Button Name="btnRemove" Grid.Row="2" Grid.Column="1" Margin="4" Height="25">Remove</Button>
+        <Button IsDefault="True" Name="btnOpen" Grid.Row="2" Grid.Column="2" Margin="4" Height="25">Open Ch.</Button>
+    </Grid>
+</Window>

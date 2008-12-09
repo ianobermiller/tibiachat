@@ -84,6 +84,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="VipWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Window1.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -120,17 +124,25 @@
     <Compile Include="TibiaAPIetc\Objects\Item.cs" />
     <Compile Include="TibiaAPIetc\Objects\Location.cs" />
     <Compile Include="TibiaAPIetc\Objects\Structures.cs" />
+    <Compile Include="TibiaAPIetc\Objects\Vip.cs" />
     <Compile Include="TibiaAPIetc\Packets\DefaultTemplatePacket.cs" />
     <Compile Include="TibiaAPIetc\Packets\Enums.cs" />
     <Compile Include="TibiaAPIetc\Packets\Incoming\ChannelListPacket.cs" />
     <Compile Include="TibiaAPIetc\Packets\Incoming\ChatMessagePacket.cs" />
     <Compile Include="TibiaAPIetc\Packets\Incoming\PrivateChannelOpenPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\StatusMessagePacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipAddPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipLoginPacket.cs" />
+    <Compile Include="TibiaAPIetc\Packets\Incoming\VipLogoutPacket.cs" />
     <Compile Include="TibiaAPIetc\Packets\Outgoing\PlayerSpeechPacket.cs" />
     <Compile Include="TibiaAPIetc\Packets\Packet.cs" />
     <Compile Include="TibiaAPIetc\Packets\PacketBuilder.cs" />
     <Compile Include="TibiaAPIetc\Util\AdlerCheckSum.cs" />
     <Compile Include="TibiaAPIetc\Util\BigInteger.cs" />
     <Compile Include="TibiaAPIetc\Util\XTEA.cs" />
+    <Compile Include="VipWindow.xaml.cs">
+      <DependentUpon>VipWindow.xaml</DependentUpon>
+    </Compile>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -138,9 +150,6 @@
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <None Include="items.flag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <AppDesigner Include="Properties\" />
   </ItemGroup>
@@ -165,6 +174,17 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="soundbtn.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="message.wav">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="online.wav">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
