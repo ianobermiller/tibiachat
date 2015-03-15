@@ -1,0 +1,1 @@
+An application, independent of a Tibia client, that lets you chat with your friends in Tibia.
